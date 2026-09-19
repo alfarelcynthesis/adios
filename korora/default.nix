@@ -408,17 +408,17 @@ fix (self: {
     # Element type
     t:
     let
-      inherit (t) verify;
+      verifyAll = all t.verify;
     in
     self.new {
       name = "listOf<${t.name}>";
-      verify = list: isList list && all verify list;
+      verify = list: isList list && verifyAll list;
       explain =
         list:
         if !isList list then
           defaultError list
         else
-          "in element: ${explainFirstFailingValue verify t.explain list}";
+          "in element: ${explainFirstFailingValue t.verify t.explain list}";
     };
 
   /*
@@ -428,17 +428,17 @@ fix (self: {
     # Attribute value type
     t:
     let
-      inherit (t) verify;
+      verifyAll = all t.verify;
     in
     self.new {
       name = "attrsOf<${t.name}>";
-      verify = attrs: isAttrs attrs && all verify (attrValues attrs);
+      verify = attrs: isAttrs attrs && verifyAll (attrValues attrs);
       explain =
         attrs:
         if !isAttrs attrs then
           defaultError attrs
         else
-          explainFirstFailingValue (key: verify attrs.${key}) (
+          explainFirstFailingValue (key: t.verify attrs.${key}) (
             key: "in attribute '${key}': ${t.explain attrs.${key}}"
           ) (attrNames attrs);
     };
