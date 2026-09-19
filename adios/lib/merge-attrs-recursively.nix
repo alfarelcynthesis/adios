@@ -20,10 +20,10 @@ let
       recurse values
     else
       throw ''
-        While attempting to merge mutators:
-        ${toPretty { recursivelyMultiline = false; } mutators}
-        Found key '${key}' set to multiple values that couldn't be merged.
-        Unmergeable values: ${toPretty { multiline = false; } values}''
+        while calling 'adios.lib.merge.attrs.recursively':
+        while attempting to merge mutators ${toPretty { recursivelyMultiline = false; } mutators}
+        found key '${key}' set to multiple values that couldn't be merged
+        unmergeable values: ${toPretty { multiline = false; } values}''
   );
 in
 recurse mutators

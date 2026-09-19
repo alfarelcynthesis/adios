@@ -496,13 +496,13 @@ mapAttrs testModules {
           ];
         };
         expectedError.msg = ''
-          While attempting to merge mutators:
-          \[
+          while calling 'adios.lib.merge.attrs.recursively':
+          while attempting to merge mutators \[
             \{ foo = \{ bar = 1; }; }
             \{ foo = \{ bar = 2; }; }
           ]
-          Found key 'bar' set to multiple values that couldn't be merged.
-          Unmergeable values: \[ 1 2 ]'';
+          found key 'bar' set to multiple values that couldn't be merged
+          unmergeable values: \[ 1 2 ]'';
       };
     };
 
