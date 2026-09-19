@@ -465,11 +465,12 @@ mapAttrs testModules {
           ];
         };
         expectedError.msg = ''
-          Collision on key 'foo' between mutators '\[
+          while calling 'adios.lib.merge.attrs.flat':
+          while attempting to merge mutators '\[
             \{ foo = \{ bar = 1; }; }
             \{ foo = \{ baz = 2; }; }
-          ]'.
-        '';
+          ]':
+          found multiple mutators attempting to set key 'foo''\''';
       };
     };
 

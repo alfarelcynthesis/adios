@@ -19,8 +19,10 @@ zipAttrsWith (
       badMutators = filter (mutator: mutator ? ${name}) mutators;
     in
     throw ''
-      Collision on key '${name}' between mutators '${
+      while calling 'adios.lib.merge.attrs.flat':
+      while attempting to merge mutators '${
         toPretty { recursivelyMultiline = false; } badMutators
-      }'.
+      }':
+      found multiple mutators attempting to set key '${name}'
     ''
 ) mutators
