@@ -3,6 +3,7 @@ types:
 let
   inherit (builtins)
     addErrorContext
+    all
     attrNames
     concatMap
     concatStringsSep
@@ -51,7 +52,37 @@ let
   checkMutations = checkModuleAttributes types.modules.mutation.check;
   checkTypedefs = types.modules.types.check;
   checkLib = types.modules.lib.check;
+  checkAssertions = types.modules.assertions.check;
   checkImpl = types.modules.impl.check;
+
+  # NOTE: assertions are currently run upon trying to access `args`, not
+  # `args.options`. This means even if only `args.inputs` are accessed,
+  # assertions still run. This is technically less lazy than it could be, but
+  # changing it would be a very minor performance regression. Consider fixing.
+  runAssertionsAndDefine =
+    self: args:
+    assert
+      !self ? assertions
+      || all (
+        assertion:
+        callFunction assertion.verify args
+        || addErrorContext "in module '${self.path}': while verifying 'assertions':" (
+          throw (callFunction assertion.explain args)
+        )
+      ) self.assertions;
+    args;
+  runAssertionsAndCall =
+    self: args:
+    assert
+      !self ? assertions
+      || all (
+        assertion:
+        callFunction assertion.verify args
+        || addErrorContext "while calling module '${self.path}': while verifying 'assertions':" (
+          throw (callFunction assertion.explain args)
+        )
+      ) self.assertions;
+    callFunction self.impl args;
 
   # Merge lhs & rhs recursing into suboptions
   mergeOptionsUnchecked =
@@ -198,10 +229,10 @@ let
     {
       # The current module
       self,
+      # Computed args fixpoint
+      args,
       # Defined options
       options ? self.options,
-      # Computed args fixpoint
-      args ? self.args,
       # why the options had to be computed
       errorContext ? "in",
       # parameters given explicitly in eval/impl stage
@@ -299,6 +330,35 @@ let
       errorPrefix = "in definition of '${self.path}'";
       result = callFunction def.impl self.args;
 
+      # compute args before running assertions to prevent infrec
+      # self.args stores the args after assertions
+      args' = {
+        inputs = mapAttrs (
+          _: inputData:
+          (
+            if inputData ? from then
+              fetchInput self inputData.from
+            else
+              seq messages.modulePathWarning (
+                addWarningWithLocation inputData "path" "deprecated module path" (
+                  fetchModuleByPath self.path inputData.path
+                )
+              )
+          ).args.options
+        ) self.inputs;
+        options =
+          computeOptions {
+            inherit self;
+            args = args';
+            ${if evalParams ? ${self.path} then "params" else null} = evalParams.${self.path};
+          }
+          # If the current module has an impl, include it in the computed args,
+          # so the module can be called inside the tree
+          // {
+            ${if def ? impl then "__functor" else null} = self.__functor;
+          };
+      };
+
       self = {
         options = checkOptions "${errorPrefix}: in attribute 'options'" (def.options or { });
         inputs = checkInputs "${errorPrefix}: in attribute 'inputs'" (def.inputs or { });
@@ -317,32 +377,10 @@ let
         ${if def ? impl then "impl" else null} = addErrorContext "${errorPrefix}: in attribute 'impl'" (
           checkImpl def.impl
         );
+        ${if def ? assertions then "assertions" else null} =
+          addErrorContext "${errorPrefix}: in attribute 'assertions'" (checkAssertions def.assertions);
 
-        args = {
-          inputs = mapAttrs (
-            _: inputData:
-            (
-              if inputData ? from then
-                fetchInput self inputData.from
-              else
-                seq messages.modulePathWarning (
-                  addWarningWithLocation inputData "path" "deprecated module path" (
-                    fetchModuleByPath self.path inputData.path
-                  )
-                )
-            ).args.options
-          ) self.inputs;
-          options =
-            computeOptions {
-              inherit self;
-              ${if evalParams ? ${self.path} then "params" else null} = evalParams.${self.path};
-            }
-            # If the current module has an impl, include it in the computed args,
-            # so the module can be called inside the tree
-            // {
-              ${if def ? impl then "__functor" else null} = self.__functor;
-            };
-        };
+        args = runAssertionsAndDefine self args';
 
         ${if def ? impl then "__functor" else null} =
           _: implParams:
@@ -351,9 +389,11 @@ let
             result
           else
             let
-              # Recompute args fixpoint with passed params
+              # recompute args fixpoint with the passed params
               args = {
-                inherit (self.args) inputs;
+                # inherit args', not self.args, so assertions are only computed
+                # once
+                inherit (args') inputs;
                 options =
                   computeOptions {
                     inherit self args;
@@ -372,7 +412,7 @@ let
                   };
               };
             in
-            callFunction def.impl args;
+            runAssertionsAndCall self args;
       };
     in
     assert isAttrs def || messages.mkBadDefError self.path def;

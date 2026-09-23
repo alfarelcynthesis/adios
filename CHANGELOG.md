@@ -1,5 +1,58 @@
 Any new features or breaking changes will be listed here.
 
+# `assertions` added
+
+Adios now features first-class assertions. These can be defined as such:
+
+```nix
+{
+  options.foo = {
+    type = types.int;
+    default = 10;
+  };
+  options.bar = {
+    type = types.int;
+    default = 5;
+  };
+
+  assertions = [
+    {
+      verify = { options }: options.foo > options.bar;
+      explain =
+        { options }:
+        "'options.foo' was expected to be greater than 'options.bar', but `${options.foo} <= ${options.bar}`";
+    }
+  ];
+}
+```
+
+Assertions are run upon evaluating an input module, or calling a module's `impl`. They're well-suited to cases where
+options have explicit relationships that must be validated. We commonly use assertions in
+[adios-wrappers](https://github.com/llakala/adios-wrappers) to create disjoint options.
+
+Note that assertions are _not_ necessary to add additional checks to an option's type. That can be done with
+`types.intersection` / `types.both` like so:
+
+```nix
+{
+  options.positive-number.type = types.intersection [
+    types.int
+    (types.new {
+      name = "positive";
+      verify = v: v >= 0;
+    })
+  ];
+}
+```
+
+In terms of specification, all assertions must have:
+- a `verify` function, which returns whether the assertion passed
+- an `explain` function that's called when `verify` returns false, and should return an error message
+
+This split is made to incentivize proper performance practices. Since `explain` is only run on failure, it can run more
+expensive logic to generate a high-quality error message. By contrast, since the `verify` function is always run, it
+should be as minimal as possible.
+
 # `__name` attribute removed
 
 Types no longer have an `__name` attribute. This was defined as an extremely trivial `head (split "<" name)`, which can
