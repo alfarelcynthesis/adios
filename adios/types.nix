@@ -96,6 +96,13 @@ let
     mutation = attrsOf function;
 
     lib = attrsOf (either function (rename "sublib" modules.lib));
+
+    assertions = listOf (
+      struct "assertion" {
+        verify = function;
+        explain = function;
+      }
+    );
   };
 
 in
