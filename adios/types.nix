@@ -5,6 +5,7 @@ let
   inherit (korora)
     any
     attrsOf
+    either
     function
     listOf
     new
@@ -13,25 +14,10 @@ let
     string
     struct
     type
-    union
     ;
 
-  typesT = attrsOf modules.typedef;
-
   modules = {
-    typedef = korora.new (
-      let
-        type = union [
-          function
-          type
-          typesT
-        ];
-      in
-      {
-        name = "typedef";
-        inherit (type) verify explain;
-      }
-    );
+    types = attrsOf (either type (rename "subtypedef" modules.types));
 
     impl = function;
 
@@ -109,10 +95,7 @@ let
 
     mutation = attrsOf function;
 
-    lib = union [
-      function
-      (attrsOf (rename "sublib" modules.lib))
-    ];
+    lib = attrsOf (either function (rename "sublib" modules.lib));
   };
 
 in

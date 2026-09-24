@@ -49,7 +49,7 @@ let
   checkOptions = checkModuleAttributes types.modules.option.check;
   checkInputs = checkModuleAttributes types.modules.input.check;
   checkMutations = checkModuleAttributes types.modules.mutation.check;
-  checkTypedefs = checkModuleAttributes types.modules.typedef.check;
+  checkTypedefs = types.modules.types.check;
   checkLib = types.modules.lib.check;
   checkImpl = types.modules.impl.check;
 
@@ -308,7 +308,7 @@ let
         path = if path == "" then "/" else path;
 
         ${if def ? types then "types" else null} =
-          checkTypedefs "${errorPrefix}: in attribute 'types'" def.types;
+          addErrorContext "${errorPrefix}: in attribute 'types'" (checkTypedefs def.types);
         ${if def ? mutations then "mutations" else null} =
           checkMutations "${errorPrefix}: in attribute 'mutations'" def.mutations;
         ${if def ? lib then "lib" else null} = addErrorContext "${errorPrefix}: in attribute 'lib'" (
