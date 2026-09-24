@@ -1,6 +1,7 @@
 # run `nix-unit adios/tests.nix` to see if the tests pass
 let
   inherit (builtins)
+    deepSeq
     foldl'
     isFunction
     mapAttrs
@@ -85,6 +86,26 @@ mapAttrs testModules {
         impl = { options }: options.test;
       };
       expectedError.msg = "in type 'string': value '0' failed the type check";
+    };
+
+    testAllAttributes = {
+      module = {
+        options.some-option.options.some-suboption.type = types.int;
+        inputs.some-input.from = { self }: self.some-child;
+        modules.some-child = { };
+        types = {
+          type1 = types.int;
+          nested.type2 = types.string;
+        };
+        lib = {
+          func1 = a: true;
+          nested.func2 = b: false;
+        };
+        mutations."/some-module".some-option = _: true;
+        impl = _: true;
+      };
+      apply = tree: deepSeq tree true;
+      expected = true;
     };
   };
 
