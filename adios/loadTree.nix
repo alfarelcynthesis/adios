@@ -126,18 +126,26 @@ let
           # because Nix users should know not to name attributes __functor.
           __functor = module;
         };
+      cachedParentFargs = {
+        parent = false;
+      };
     in
     parent':
     let
       # be friendly to partial application, so a single parent can be reused
       # while recursing
       parent = if parent'.path == "/" then root else recurse parent';
+      parentArgs = { inherit parent; };
     in
     self: inputFetcher:
-    (callFunction inputFetcher {
-      inherit root parent;
-      self = recurse self;
-    }).__functor;
+    # optimize for the common case where functionArgs is just `{ parent }:`
+    if functionArgs inputFetcher == cachedParentFargs then
+      (inputFetcher parentArgs).__functor
+    else
+      (callFunction inputFetcher {
+        inherit root parent;
+        self = recurse self;
+      }).__functor;
 
   computeMutators =
     {
